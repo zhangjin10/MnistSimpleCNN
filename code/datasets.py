@@ -3,9 +3,11 @@ import numpy as np
 from PIL import Image
 from torchvision import transforms
 
+
 class MnistDataset(torch.utils.data.Dataset):
+
     def __init__(self, training=True, transform=None):
-        if training==True:
+        if training == True:
             f = open('../data/MNIST/raw/train-images-idx3-ubyte', 'rb')
             xs = np.array(np.frombuffer(f.read(), np.uint8, offset=16))
             f.close()
@@ -33,6 +35,5 @@ class MnistDataset(torch.utils.data.Dataset):
         y = torch.tensor(np.array(self.y_data[idx]))
         if self.transform:
             x = self.transform(x)
-        x = transforms.ToTensor()(np.array(x)/255)
+        x = transforms.ToTensor()(np.array(x) / 255)
         return x, y
-

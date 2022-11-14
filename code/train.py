@@ -2,7 +2,7 @@
 import sys
 import os
 import argparse
-import numpy as np 
+import numpy as np
 import math
 import torch
 import torch.nn as nn
@@ -18,7 +18,8 @@ from models.modelM3 import ModelM3
 from models.modelM5 import ModelM5
 from models.modelM7 import ModelM7
 
-def run(p_seed=0, p_epochs=150, p_kernel_size=5, p_logdir="temp"):
+
+def run(p_seed=0, p_epochs=150, p_kernel_size=3, p_logdir="temp"):
     # random number generator seed ------------------------------------------------#
     SEED = p_seed
     torch.backends.cudnn.deterministic = True
@@ -34,10 +35,10 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=5, p_logdir="temp"):
     NUM_EPOCHS = p_epochs
 
     # file names ------------------------------------------------------------------#
-    if not os.path.exists("../logs/%s"%p_logdir):
-        os.makedirs("../logs/%s"%p_logdir)
-    OUTPUT_FILE = str("../logs/%s/log%03d.out"%(p_logdir,SEED))
-    MODEL_FILE = str("../logs/%s/model%03d.pth"%(p_logdir,SEED))
+    if not os.path.exists("../logs/%s" % p_logdir):
+        os.makedirs("../logs/%s" % p_logdir)
+    OUTPUT_FILE = str("../logs/%s/log%03d.out" % (p_logdir, SEED))
+    MODEL_FILE = str("../logs/%s/model%03d.pth" % (p_logdir, SEED))
 
     # enable GPU usage ------------------------------------------------------------#
     use_cuda = torch.cuda.is_available()
@@ -50,20 +51,22 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=5, p_logdir="temp"):
     transform = transforms.Compose([
         RandomRotation(20, seed=SEED),
         transforms.RandomAffine(0, translate=(0.2, 0.2)),
-        ])
+    ])
 
     # data loader -----------------------------------------------------------------#
     train_dataset = MnistDataset(training=True, transform=transform)
     test_dataset = MnistDataset(training=False, transform=None)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=120, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=100, shuffle=False)
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=120, shuffle=True)
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset, batch_size=100, shuffle=False)
 
     # model selection -------------------------------------------------------------#
-    if(KERNEL_SIZE == 3):
+    if (KERNEL_SIZE == 3):
         model = ModelM3().to(device)
-    elif(KERNEL_SIZE == 5):
+    elif (KERNEL_SIZE == 5):
         model = ModelM5().to(device)
-    elif(KERNEL_SIZE == 7):
+    elif (KERNEL_SIZE == 7):
         model = ModelM7().to(device)
 
     summary(model, (1, 28, 28))
@@ -71,7 +74,8 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=5, p_logdir="temp"):
     # hyperparameter selection ----------------------------------------------------#
     ema = EMA(model, decay=0.999)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.98)
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
+        optimizer, gamma=0.98)
 
     # delete result file ----------------------------------------------------------#
     f = open(OUTPUT_FILE, 'w')
@@ -90,21 +94,25 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=5, p_logdir="temp"):
         train_loss = 0
         train_corr = 0
         for batch_idx, (data, target) in enumerate(train_loader):
-            data, target = data.to(device), target.to(device, dtype=torch.int64)
+            data, target = data.to(device), target.to(
+                device, dtype=torch.int64)
             optimizer.zero_grad()
             output = model(data)
             loss = F.nll_loss(output, target)
             train_pred = output.argmax(dim=1, keepdim=True)
-            train_corr += train_pred.eq(target.view_as(train_pred)).sum().item()
+            train_corr += train_pred.eq(
+                target.view_as(train_pred)).sum().item()
             train_loss += F.nll_loss(output, target, reduction='sum').item()
             loss.backward()
             optimizer.step()
             g_step += 1
             ema(model, g_step)
             if batch_idx % 100 == 0:
-                print('Train Epoch: {} [{:05d}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, batch_idx * len(data), len(train_loader.dataset),
-                    100. * batch_idx / len(train_loader), loss.item()))
+                print('Train Epoch: {} [{:05d}/{} ({:.0f}%)]\tLoss: {:.6f}'.
+                      format(epoch, batch_idx * len(data),
+                             len(train_loader.dataset),
+                             100. * batch_idx / len(train_loader),
+                             loss.item()))
         train_loss /= len(train_loader.dataset)
         train_accuracy = 100 * train_corr / len(train_loader.dataset)
 
@@ -119,17 +127,18 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=5, p_logdir="temp"):
         total_target = np.zeros(0)
         with torch.no_grad():
             for data, target in test_loader:
-                data, target = data.to(device), target.to(device,  dtype=torch.int64)
+                data, target = data.to(device), target.to(
+                    device, dtype=torch.int64)
                 output = model(data)
                 test_loss += F.nll_loss(output, target, reduction='sum').item()
                 pred = output.argmax(dim=1, keepdim=True)
                 total_pred = np.append(total_pred, pred.cpu().numpy())
                 total_target = np.append(total_target, target.cpu().numpy())
                 correct += pred.eq(target.view_as(pred)).sum().item()
-            if(max_correct < correct):
+            if (max_correct < correct):
                 torch.save(model.state_dict(), MODEL_FILE)
                 max_correct = correct
-                print("Best accuracy! correct images: %5d"%correct)
+                print("Best accuracy! correct images: %5d" % correct)
         ema.resume(model)
 
         #--------------------------------------------------------------------------#
@@ -138,11 +147,15 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=5, p_logdir="temp"):
         test_loss /= len(test_loader.dataset)
         test_accuracy = 100 * correct / len(test_loader.dataset)
         best_test_accuracy = 100 * max_correct / len(test_loader.dataset)
-        print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%) (best: {:.2f}%)\n'.format(
-            test_loss, correct, len(test_loader.dataset), test_accuracy, best_test_accuracy))
+        print(
+            '\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%) (best: {:.2f}%)\n'
+            .format(test_loss, correct, len(test_loader.dataset),
+                    test_accuracy, best_test_accuracy))
 
         f = open(OUTPUT_FILE, 'a')
-        f.write(" %3d %12.6f %9.3f %12.6f %9.3f %9.3f\n"%(epoch, train_loss, train_accuracy, test_loss, test_accuracy, best_test_accuracy))
+        f.write(" %3d %12.6f %9.3f %12.6f %9.3f %9.3f\n" %
+                (epoch, train_loss, train_accuracy, test_loss, test_accuracy,
+                 best_test_accuracy))
         f.close()
 
         #--------------------------------------------------------------------------#
@@ -150,19 +163,20 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=5, p_logdir="temp"):
         #--------------------------------------------------------------------------#
         lr_scheduler.step()
 
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--seed", default=0, type=int)
     p.add_argument("--trials", default=15, type=int)
-    p.add_argument("--epochs", default=150, type=int)    
-    p.add_argument("--kernel_size", default=5, type=int)    
+    p.add_argument("--epochs", default=150, type=int)
+    p.add_argument("--kernel_size", default=5, type=int)
     p.add_argument("--gpu", default=0, type=int)
     p.add_argument("--logdir", default="temp")
     args = p.parse_args()
-    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
     for i in range(args.trials):
-        run(p_seed = args.seed + i,
-            p_epochs = args.epochs,
-            p_kernel_size = args.kernel_size,
-            p_logdir = args.logdir)
+        run(p_seed=args.seed + i,
+            p_epochs=args.epochs,
+            p_kernel_size=args.kernel_size,
+            p_logdir=args.logdir)
