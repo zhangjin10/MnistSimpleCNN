@@ -73,7 +73,7 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=3, p_logdir="temp"):
 
     # hyperparameter selection ----------------------------------------------------#
     ema = EMA(model, decay=0.999)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.SGD(model.parameters(), lr=0.001)
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
         optimizer, gamma=0.98)
 
@@ -87,9 +87,9 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=3, p_logdir="temp"):
 
     # training and evaluation loop ------------------------------------------------#
     for epoch in range(NUM_EPOCHS):
-        #--------------------------------------------------------------------------#
+        # --------------------------------------------------------------------------#
         # train process                                                            #
-        #--------------------------------------------------------------------------#
+        # --------------------------------------------------------------------------#
         model.train()
         train_loss = 0
         train_corr = 0
@@ -108,17 +108,18 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=3, p_logdir="temp"):
             g_step += 1
             ema(model, g_step)
             if batch_idx % 100 == 0:
-                print('Train Epoch: {} [{:05d}/{} ({:.0f}%)]\tLoss: {:.6f}'.
-                      format(epoch, batch_idx * len(data),
-                             len(train_loader.dataset),
-                             100. * batch_idx / len(train_loader),
-                             loss.item()))
+                print(
+                    'Train Epoch: {} [{:05d}/{} ({:.0f}%)]\tLoss: {:.6f} lr: {}'
+                    .format(epoch+1, batch_idx * len(data),
+                            len(train_loader.dataset),
+                            100. * batch_idx / len(train_loader), loss.item(),
+                            lr_scheduler.get_last_lr()))
         train_loss /= len(train_loader.dataset)
         train_accuracy = 100 * train_corr / len(train_loader.dataset)
 
-        #--------------------------------------------------------------------------#
+        # --------------------------------------------------------------------------#
         # test process                                                             #
-        #--------------------------------------------------------------------------#
+        # --------------------------------------------------------------------------#
         model.eval()
         ema.assign(model)
         test_loss = 0
@@ -141,9 +142,9 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=3, p_logdir="temp"):
                 print("Best accuracy! correct images: %5d" % correct)
         ema.resume(model)
 
-        #--------------------------------------------------------------------------#
+        # --------------------------------------------------------------------------#
         # output                                                                   #
-        #--------------------------------------------------------------------------#
+        # --------------------------------------------------------------------------#
         test_loss /= len(test_loader.dataset)
         test_accuracy = 100 * correct / len(test_loader.dataset)
         best_test_accuracy = 100 * max_correct / len(test_loader.dataset)
@@ -158,9 +159,9 @@ def run(p_seed=0, p_epochs=150, p_kernel_size=3, p_logdir="temp"):
                  best_test_accuracy))
         f.close()
 
-        #--------------------------------------------------------------------------#
+        # --------------------------------------------------------------------------#
         # update learning rate scheduler                                           #
-        #--------------------------------------------------------------------------#
+        # --------------------------------------------------------------------------#
         lr_scheduler.step()
 
 

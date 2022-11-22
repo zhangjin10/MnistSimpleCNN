@@ -49,3 +49,7 @@ class ModelM3(nn.Module):
     def forward(self, x):
         logits = self.get_logits(x)
         return F.log_softmax(logits, dim=1)
+
+M = ModelM3()
+x = torch.randn(32, 1, 28, 28)
+M(x)
